@@ -99,5 +99,3 @@ Available simulations
 <Scenario Name>
 ---------------
 
-Description
-
