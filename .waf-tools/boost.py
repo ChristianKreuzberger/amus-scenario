@@ -39,9 +39,9 @@ When using MSVC, a lot of compilation flags need to match your BOOST build confi
  - boost libraries will try to be smart and use the (pretty but often not useful) auto-linking feature of MSVC
    So before calling `conf.check_boost` you might want to disabling by adding:
    	conf.env.DEFINES_BOOST += ['BOOST_ALL_NO_LIB']
-   Errors:
+   Errors: 
  - boost might also be compiled with /MT, which links the runtime statically.
-   If you have problems with redefined symbols,
+   If you have problems with redefined symbols, 
 		self.env['DEFINES_%s' % var] += ['BOOST_ALL_NO_LIB']
 		self.env['CXXFLAGS_%s' % var] += ['/MD', '/EHsc']
 Passing `--boost-linkage_autodetect` might help ensuring having a correct linkage in some basic cases.
@@ -52,25 +52,16 @@ import sys
 import re
 from waflib import Utils, Logs, Errors
 from waflib.Configure import conf
+from waflib.Errors import WafError
 
-BOOST_LIBS = ['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/sw/lib', '/lib',
-              '/usr/lib/x86_64-linux-gnu', '/usr/lib/i386-linux-gnu',
-              '/usr/local/ndn/lib', '/opt/ndn/lib']
-BOOST_INCLUDES = ['/usr/include', '/usr/local/include', '/opt/local/include', '/sw/include',
-                  '/usr/local/ndn/include', '/opt/ndn/include']
+BOOST_LIBS = ['/usr/lib/x86_64-linux-gnu', '/usr/lib/i386-linux-gnu',
+              '/usr/lib', '/usr/local/lib', '/opt/local/lib', '/sw/lib', '/lib']
+BOOST_INCLUDES = ['/usr/include', '/usr/local/include', '/opt/local/include', '/sw/include']
 BOOST_VERSION_FILE = 'boost/version.hpp'
 BOOST_VERSION_CODE = '''
 #include <iostream>
 #include <boost/version.hpp>
-int main() { std::cout << BOOST_LIB_VERSION << ":" << BOOST_VERSION << std::endl; }
-'''
-BOOST_SYSTEM_CODE = '''
-#include <boost/system/error_code.hpp>
-int main() { boost::system::error_code c; }
-'''
-BOOST_THREAD_CODE = '''
-#include <boost/thread.hpp>
-int main() { boost::thread t; }
+int main() { std::cout << BOOST_LIB_VERSION << std::endl; }
 '''
 
 # toolsets from {boost_dir}/tools/build/v2/tools/common.jam
@@ -103,75 +94,69 @@ BOOST_TOOLSETS = {
 
 
 def options(opt):
-	opt = opt.add_option_group('Boost Options')
-
+        opt = opt.add_option_group ("Boost Options")
 	opt.add_option('--boost-includes', type='string',
-				   default='', dest='boost_includes',
-				   help='''path to the directory where the boost includes are, e.g., /path/to/boost_1_55_0/stage/include''')
+                       default='', dest='boost_includes',
+                       help='''path to the boost includes root (~boost root), '''
+                            '''e.g., /path/to/boost_1_47_0''')
 	opt.add_option('--boost-libs', type='string',
-				   default='', dest='boost_libs',
-				   help='''path to the directory where the boost libs are, e.g., /path/to/boost_1_55_0/stage/lib''')
+                       default='', dest='boost_libs',
+                       help='''path to the directory where the boost libs are, '''
+                             '''e.g., /path/to/boost_1_47_0/stage/lib''')
 	opt.add_option('--boost-static', action='store_true',
-				   default=False, dest='boost_static',
-				   help='link with static boost libraries (.lib/.a)')
+                       default=False, dest='boost_static',
+                       help='''link with static boost libraries (.lib/.a)''')
 	opt.add_option('--boost-mt', action='store_true',
-				   default=False, dest='boost_mt',
-				   help='select multi-threaded libraries')
+                       default=False, dest='boost_mt',
+                       help='''select multi-threaded libraries''')
 	opt.add_option('--boost-abi', type='string', default='', dest='boost_abi',
-				   help='''select libraries with tags (dgsyp, d for debug), see doc Boost, Getting Started, chapter 6.1''')
+                       help='''select libraries with tags (dgsyp, d for debug), '''
+                            '''see doc Boost, Getting Started, chapter 6.1''')
 	opt.add_option('--boost-linkage_autodetect', action="store_true", dest='boost_linkage_autodetect',
-				   help="auto-detect boost linkage options (don't get used to it / might break other stuff)")
+                       help='''auto-detect boost linkage options (don't get used to it / might break other stuff)''')
 	opt.add_option('--boost-toolset', type='string',
-				   default='', dest='boost_toolset',
-				   help='force a toolset e.g. msvc, vc90, gcc, mingw, mgw45 (default: auto)')
+                       default='', dest='boost_toolset',
+                       help='''force a toolset e.g. msvc, vc90, '''
+                            '''gcc, mingw, mgw45 (default: auto)''')
+        
 	py_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
 	opt.add_option('--boost-python', type='string',
-				   default=py_version, dest='boost_python',
-				   help='select the lib python with this version (default: %s)' % py_version)
+                       default=py_version, dest='boost_python',
+                       help='''select the lib python with this version (default: %s)''' % py_version)
+        
+
+@conf
+def __boost_get_version_file(self, dir):
+	try:
+		return self.root.find_dir(dir).find_node(BOOST_VERSION_FILE)
+	except:
+		return None
 
 
 @conf
-def __boost_get_version_file(self, d):
-	dnode = self.root.find_dir(d)
-	if dnode:
-		return dnode.find_node(BOOST_VERSION_FILE)
-	return None
-
-@conf
-def boost_get_version(self, d):
+def boost_get_version(self, dir):
 	"""silently retrieve the boost version number"""
-	node = self.__boost_get_version_file(d)
-	if node:
-		try:
-			txt = node.read()
-		except (OSError, IOError):
-			Logs.error("Could not read the file %r" % node.abspath())
-		else:
-			re_but1 = re.compile('^#define\\s+BOOST_LIB_VERSION\\s+"(.*)"', re.M)
-			m1 = re_but1.search(txt)
+	re_but = re.compile('^#define\\s+BOOST_LIB_VERSION\\s+"(.*)"$', re.M)
+	try:
+		val = re_but.search(self.__boost_get_version_file(dir).read()).group(1)
+	except:
+		val = self.check_cxx(fragment=BOOST_VERSION_CODE, includes=[dir], execute=False, define_ret=True)
+	return val
 
-			re_but2 = re.compile('^#define\\s+BOOST_VERSION\\s+(\\d*)', re.M)
-			m2 = re_but2.search(txt)
-
-			if m1 and m2:
-				return (m1.group(1), m2.group(1))
-
-	return self.check_cxx(fragment=BOOST_VERSION_CODE, includes=[d], execute=True, define_ret=True).split(":")
 
 @conf
 def boost_get_includes(self, *k, **kw):
 	includes = k and k[0] or kw.get('includes', None)
 	if includes and self.__boost_get_version_file(includes):
 		return includes
-	for d in Utils.to_list(self.environ.get('INCLUDE', '')) + BOOST_INCLUDES:
-		if self.__boost_get_version_file(d):
-			return d
-	if includes:
-		self.end_msg('headers not found in %s' % includes)
-		self.fatal('The configuration failed')
-	else:
-		self.end_msg('headers not found, please provide a --boost-includes argument (see help)')
-		self.fatal('The configuration failed')
+	for dir in BOOST_INCLUDES:
+		if self.__boost_get_version_file(dir):
+			return dir
+	if kw.get('boost_mandatory', True):
+		if includes:
+			self.fatal('headers not found in %s' % includes)
+		else:
+			self.fatal('headers not found, please provide a --boost-includes argument (see help)')
 
 
 @conf
@@ -198,24 +183,23 @@ def __boost_get_libs_path(self, *k, **kw):
 		path = self.root.find_dir(libs)
 		files = path.ant_glob('*boost_*')
 	if not libs or not files:
-		for d in Utils.to_list(self.environ.get('LIB', [])) + BOOST_LIBS:
-			path = self.root.find_dir(d)
-			if path:
+		for dir in BOOST_LIBS:
+			try:
+				path = self.root.find_dir(dir)
 				files = path.ant_glob('*boost_*')
 				if files:
 					break
-			path = self.root.find_dir(d + '64')
-			if path:
+				path = self.root.find_dir(dir + '64')
 				files = path.ant_glob('*boost_*')
 				if files:
 					break
+			except:
+				path = None
 	if not path:
 		if libs:
-			self.end_msg('libs not found in %s' % libs)
-			self.fatal('The configuration failed')
+			self.fatal('libs not found in %s' % libs)
 		else:
-			self.end_msg('libs not found, please provide a --boost-libs argument (see help)')
-			self.fatal('The configuration failed')
+			self.fatal('libs not found, please provide a --boost-libs argument (see help)')
 
 	self.to_log('Found the boost path in %r with the libraries:' % path)
 	for x in files:
@@ -268,8 +252,7 @@ def boost_get_libs(self, *k, **kw):
 				libs.append(format_lib_name(file.name))
 				break
 		else:
-			self.end_msg('lib %s not found in %s' % (lib, path.abspath()))
-			self.fatal('The configuration failed')
+			self.fatal('lib %s not found in %s' % (lib, path.abspath()))
 
 	return path.abspath(), libs
 
@@ -295,21 +278,29 @@ def check_boost(self, *k, **kw):
 	var = kw.get('uselib_store', 'BOOST')
 
 	self.start_msg('Checking boost includes')
-	self.env['INCLUDES_%s' % var] = inc = self.boost_get_includes(**params)
-	versions = self.boost_get_version(inc)
-	self.env.BOOST_VERSION = versions[0]
-	self.env.BOOST_VERSION_NUMBER = int(versions[1])
-	self.end_msg("%d.%d.%d" % (int(versions[1]) / 100000,
-				   int(versions[1]) / 100 % 1000,
-				   int(versions[1]) % 100))
+	try:
+		self.env['INCLUDES_%s' % var] = self.boost_get_includes(**params)
+		self.env.BOOST_VERSION = self.boost_get_version(self.env['INCLUDES_%s' % var])
+	except WafError:
+		self.end_msg("not found", 'YELLOW')
+		raise
+	#self.env['INCLUDES_%s' % var] = inc = self.boost_get_includes(**params)
+	#self.env.BOOST_VERSION = self.boost_get_version(inc)
+	self.end_msg(self.env.BOOST_VERSION)
 	if Logs.verbose:
 		Logs.pprint('CYAN', '	path : %s' % self.env['INCLUDES_%s' % var])
 
 	if not params['lib']:
 		return
 	self.start_msg('Checking boost libs')
-	suffix = params.get('static', None) and 'ST' or ''
-	path, libs = self.boost_get_libs(**params)
+	try:
+		suffix = params.get('static', 'ST') or ''
+		path, libs = self.boost_get_libs(**params)
+	except WafError:
+		self.end_msg("not found", 'YELLOW')
+		raise
+	#suffix = params.get('static', None) and 'ST' or ''
+	#path, libs = self.boost_get_libs(**params)
 	self.env['%sLIBPATH_%s' % (suffix, var)] = [path]
 	self.env['%sLIB_%s' % (suffix, var)] = libs
 	self.end_msg('ok')
@@ -321,13 +312,19 @@ def check_boost(self, *k, **kw):
 	def try_link():
 		if 'system' in params['lib']:
 			self.check_cxx(
-			 fragment=BOOST_SYSTEM_CODE,
+			 fragment="\n".join([
+			  '#include <boost/system/error_code.hpp>',
+			  'int main() { boost::system::error_code c; }',
+			 ]),
 			 use=var,
 			 execute=False,
 			)
 		if 'thread' in params['lib']:
 			self.check_cxx(
-			 fragment=BOOST_THREAD_CODE,
+			 fragment="\n".join([
+			  '#include <boost/thread.hpp>',
+			  'int main() { boost::thread t; }',
+			 ]),
 			 use=var,
 			 execute=False,
 			)
@@ -361,21 +358,19 @@ def check_boost(self, *k, **kw):
 					self.end_msg("ok: winning cxxflags combination: %s" % (self.env["CXXFLAGS_%s" % var]))
 					e = None
 					break
-				except Errors.ConfigurationError as exc:
+				except Errors.ConfigurationError, exc:
 					self.env.revert()
 					e = exc
 
 			if e is not None:
-				self.end_msg("Could not auto-detect boost linking flags combination, you may report it to boost.py author", ex=e)
-				self.fatal('The configuration failed')
+				self.fatal("Could not auto-detect boost linking flags combination, you may report it to boost.py author", ex=e)
 		else:
-			self.end_msg("Boost linkage flags auto-detection not implemented (needed ?) for this toolchain")
-			self.fatal('The configuration failed')
+			self.fatal("Boost linkage flags auto-detection not implemented (needed ?) for this toolchain")
 	else:
 		self.start_msg('Checking for boost linkage')
 		try:
 			try_link()
-		except Errors.ConfigurationError as e:
-			self.end_msg("Could not link against boost libraries using supplied options")
-			self.fatal('The configuration failed')
+		except Errors.ConfigurationError, e:
+			self.fatal("Could not link against boost libraries using supplied options")
 		self.end_msg('ok')
+

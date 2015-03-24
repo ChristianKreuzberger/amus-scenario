@@ -45,6 +45,13 @@ def configure(conf):
         os.environ['PKG_CONFIG_PATH'] = ':'.join([
             '/usr/local/lib/pkgconfig',
             '/opt/local/lib/pkgconfig'])
+    conf.check_boost(lib='system iostreams')
+    boost_version = conf.env.BOOST_VERSION.split('_')
+    if int(boost_version[0]) < 1 or int(boost_version[1]) < 53:
+        Logs.error ("ndnSIM requires at least boost version 1.53")
+        Logs.error ("Please upgrade your distribution or install custom boost libraries (http://ndnsim.net/faq.html#boost-libraries)")
+        exit (1)
+
     conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
                    uselib_store='NDN_CXX', mandatory=True)
 
@@ -59,7 +66,7 @@ int main()
 
     conf.env.append_value('INCLUDES', os.path.abspath(os.path.join("../libdash/libdash/libdash/include/", ".")))
 
-    conf.check(args=["--cflags", "--libs"], fragment=test_code, package='libdash', lib='dash', mandatory=True, define_name='DASH', 
+    conf.check(args=["--cflags", "--libs"], fragment=test_code, package='libdash', lib='dash', mandatory=True, define_name='DASH',
                                                     uselib_store='DASH',libpath=os.path.abspath(os.path.join("../libdash/libdash/build/bin/", ".")))
 
     conf.env['INCLUDES_DASH'] = os.path.abspath(os.path.join("../libdash/libdash/build/bin/", "."))
@@ -85,7 +92,7 @@ int main()
         # No user specified '--with-brite' option, try to guess
         # bake.py uses ../../build, while ns-3-dev uses ../click
         brite_dir = os.path.join('..','BRITE')
-        brite_bake_build_dir = os.path.join('..', '..', 'build') 
+        brite_bake_build_dir = os.path.join('..', '..', 'build')
         brite_bake_lib_dir = os.path.join(brite_bake_build_dir, 'lib')
         if os.path.exists(os.path.join(brite_dir, lib_to_check)):
             conf.msg("Checking for BRITE location", ("%s (guessed)" % brite_dir))
@@ -157,7 +164,7 @@ int main()
         conf.define('NS3_ASSERT_ENABLE', 1)
 
 def build (bld):
-    deps = 'NDN_CXX ' + ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
+    deps = 'BOOST BOOST_IOSTREAMS ' + ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
 
     common = bld.objects (
         target = "extensions",
@@ -209,5 +216,5 @@ def shutdown (ctx):
 
         if Options.options.time:
             argv = ["time"] + argv
-        
+
         return subprocess.call (argv)
