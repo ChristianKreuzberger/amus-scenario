@@ -4,6 +4,9 @@ Description
 This is the scenario template for the adaptive multimedia streaming ndnSIM (with BRITE and DASH). Please have a look
 at [amus-ndnSIM github repository](https://github.com/ChristianKreuzberger/amus-ndnSIM) before continuing here.
 
+In addition, this template is based on [ndnSIM-scenario-template](https://github.com/cawka/ndnSIM-scenario-template),
+with some additions. If you run into problems, this is the place to go to for further documentation.
+
 Prerequisites
 =============
 
