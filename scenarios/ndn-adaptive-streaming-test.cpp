@@ -71,7 +71,7 @@ int
 main(int argc, char* argv[])
 {
   // setting default parameters for PointToPoint links and channels
-  Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("10Mbps"));
+  Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("30Mbps"));
   Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("10ms"));
   Config::SetDefault("ns3::DropTailQueue::MaxPackets", StringValue("20"));
 
@@ -105,19 +105,24 @@ main(int argc, char* argv[])
   // HINT: Create a directory where you put your stuff, e.g.: /home/ckreuz/dataDir
   // then create a large file, using fallocate -l 10M test.img
 
-  // Consumer
-  ndn::AppHelper consumerHelper("ns3::ndn::FileConsumerCbr");
-  // Consumer will request /prefix/0, /prefix/1, ...
-  consumerHelper.SetAttribute("FileToRequest", StringValue("/some_prefix/BBB-III.mpd.gz"));
-  consumerHelper.SetAttribute("StartWindowSize", StringValue("60"));
-  consumerHelper.SetAttribute("WriteOutfile", StringValue("/home/ckreuz/test.mpd.gz"));
+  ns3::ndn::AppHelper consumerHelper("ns3::ndn::FileConsumerCbr::MultimediaConsumer");
+  consumerHelper.SetAttribute("AllowUpscale", BooleanValue(true));
+  consumerHelper.SetAttribute("AllowDownscale", BooleanValue(false));
+  consumerHelper.SetAttribute("ScreenWidth", UintegerValue(1920));
+  consumerHelper.SetAttribute("ScreenHeight", UintegerValue(1080));
+  consumerHelper.SetAttribute("StartRepresentationId", StringValue("auto"));
+  consumerHelper.SetAttribute("MaxBufferedSeconds", UintegerValue(30));
+  consumerHelper.SetAttribute("StartUpDelay", StringValue("0.1"));
+
+  consumerHelper.SetAttribute("AdaptationLogic", StringValue("dash::player::SVCBufferBasedAdaptationLogic"));
+  consumerHelper.SetAttribute("MpdFileToRequest", StringValue(std::string("/itec/BBB-III.mpd.gz" )));
 
 
-  // Start one consumer at 1.0 seconds, the other consumer at 2.0 seconds
-  ApplicationContainer  app1 = consumerHelper.Install(nodes.Get(0));
-  //ApplicationContainer  app2 = consumerHelper.Install(nodes.Get(1));
+  consumerHelper.SetAttribute("AdaptationLogic", StringValue("dash::player::RateAndBufferBasedAdaptationLogic"));
+  consumerHelper.SetAttribute("MpdFileToRequest", StringValue(std::string("/itec/BBB.mpd.gz" )));
 
- // app2.Start(Seconds(10.5));
+  //consumerHelper.SetPrefix (std::string("/Server_" + boost::lexical_cast<std::string>(i%server.size ()) + "/layer0"));
+  ApplicationContainer app1 = consumerHelper.Install (nodes.Get(0));
 
 
   // Connect Traces
@@ -133,18 +138,18 @@ main(int argc, char* argv[])
   ndn::AppHelper producerHelper("ns3::ndn::FileServer");
 
   // Producer will reply to all requests starting with /prefix
-  producerHelper.SetPrefix("/some_prefix");
+  producerHelper.SetPrefix("/itec");
   producerHelper.SetAttribute("ContentDirectory", StringValue("/home/ckreuz/simulationData/"));
   producerHelper.Install(nodes.Get(3)); // last node
 
   ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
   ndnGlobalRoutingHelper.InstallAll();
 
-  ndnGlobalRoutingHelper.AddOrigins("/some_prefix", nodes.Get(3));
+  ndnGlobalRoutingHelper.AddOrigins("/itec", nodes.Get(3));
   ndn::GlobalRoutingHelper::CalculateRoutes();
 
 
-  Simulator::Stop(Seconds(60.0));
+  Simulator::Stop(Seconds(6000.0));
 
   ndn::AppDelayTracer::InstallAll("app-delays-trace.txt");
   ndn::FileConsumerTracer::InstallAll("file-consumer-trace.txt");
@@ -165,3 +170,4 @@ main(int argc, char* argv[])
 {
   return ns3::main(argc, argv);
 }
+
