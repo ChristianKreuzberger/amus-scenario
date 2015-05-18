@@ -123,3 +123,14 @@ you start a new terminal window:
 
     export LD_LIBRARY_PATH=/home/$USER/ndnSIM/libdash/libdash/build/bin/:/home/$USER/ndnSIM/BRITE/:$LD_LIBRARY_PATH
 
+
+---------------------------------------------
+
+
+Acknowledgements
+================
+This work was partially funded by the Austrian Science Fund (FWF) under the CHIST-ERA project [CONCERT](http://www.concert-project.org/) 
+(A Context-Adaptive Content Ecosystem Under Uncertainty), project number I1402.
+
+
+
