@@ -126,6 +126,12 @@ you start a new terminal window:
 
 ---------------------------------------------
 
+Citation
+========
+We are currently working on a technical report/paper. For now, you can cite it by using the following text:
+Christian Kreuzberger, Daniel Posch, Benjamin Rainer, and Hermann Hellwagner, "Demo: amus-ndnSIM -- Adaptive Multimedia Streaming Simulator for NDN"
+
+
 
 Acknowledgements
 ================
