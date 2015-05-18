@@ -34,9 +34,13 @@ but you can see output from NS_LOG* calls from your scenarios and extensions):
 
     ./waf configure --logging --with-brite=/home/$USER/ndnSIM/BRITE
 
-To configure in debug mode with all logging enabled
+To configure in debug mode with all logging enabled by adding the ``--debug`` statement:
 
     ./waf configure --debug --with-brite=/home/$USER/ndnSIM/BRITE
+    
+If you have libdash installed to a non-default location, you will need to specify it by using the ``--with-dash`` option:
+
+    ./waf configure --with-dash=/path/to/libdash
 
 If you have installed NS-3 in a non-standard location, you may need to set up ``PKG_CONFIG_PATH`` variable.
 
