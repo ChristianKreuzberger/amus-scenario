@@ -4,8 +4,10 @@ VERSION='0.1'
 APPNAME='template'
 
 from waflib import Build, Logs, Options, TaskGen
+import wutils
 import subprocess
 import os
+
 
 def options(opt):
     opt.load(['compiler_c', 'compiler_cxx'])
@@ -31,6 +33,16 @@ def options(opt):
                    help=('Use BRITE integration support, given by the indicated path,'
                          ' to allow the use of the BRITE topology generator'),
                    default=False, dest='with_brite')
+    opt.add_option('--with-dash',
+                   help=('libdash path - assuming ../libdash/libdash/ if not provided'
+                         '  - should contain the following subfolders: libdash/include/, build/bin/ '
+                         '  - should contain the following files: header files, shared object (libdash.so)'),
+                   default=False, dest='with_dash')
+    opt.add_option('--command-template',
+                   help=('Template of the command used to run the program given by --run;'
+                         ' It should be a shell command string containing %s inside,'
+                         ' which will be replaced by the actual program.'),
+                   type="string", default=None, dest='command_template')
 
 
 MANDATORY_NS3_MODULES = ['core', 'network', 'point-to-point', 'applications', 'mobility', 'ndnSIM']
@@ -55,6 +67,39 @@ def configure(conf):
     conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
                    uselib_store='NDN_CXX', mandatory=True)
 
+
+
+    # check for libdash
+    conf.env['ENABLE_DASH'] = False
+    lib_to_check = 'libdash.so'
+    libdash_default_dir = "../libdash/libdash/" # according to tutorial
+
+    if Options.options.with_dash:
+        conf.msg("Checking LIBDASH location", ("%s (given)" % Options.options.with_dash))
+        libdash_dir = os.path.abspath(os.path.join(Options.options.with_dash, "build/bin/"))
+        if os.path.exists(os.path.join(libdash_dir, lib_to_check)):
+            conf.env['WITH_DASH'] = os.path.abspath(Options.options.with_dash)
+        else:
+            # Add this module to the list of modules that won't be built
+            # if they are enabled.
+            conf.env['MODULES_NOT_BUILT'].append('dash')
+            return
+    else:
+        # No user specified '--with-dash' option, try to guess
+        # we have built it, so it should be in ../libdash/libdash/
+        libdash_dir = os.path.abspath(os.path.join(libdash_default_dir, "build/bin/"))
+        print libdash_dir
+        if os.path.exists(os.path.join(libdash_dir, lib_to_check)):
+            conf.msg("Checking for LIBDASH location", ("%s (guessed)" % libdash_default_dir))
+            conf.env['WITH_DASH'] = os.path.abspath(libdash_default_dir)
+        else:
+            # Add this module to the list of modules that won't be built
+            # if they are enabled.
+            conf.env['MODULES_NOT_BUILT'].append('dash')
+            return
+    # end if - libdash should be found now
+
+
     test_code = '''
 #include "libdash.h"
 
@@ -64,15 +109,19 @@ int main()
 }
 '''
 
-    conf.env.append_value('INCLUDES', os.path.abspath(os.path.join("../libdash/libdash/libdash/include/", ".")))
+    conf.env.append_value('NS3_MODULE_PATH',os.path.abspath(os.path.join(conf.env['WITH_DASH'], 'build/bin/')))
 
-    conf.check(args=["--cflags", "--libs"], fragment=test_code, package='libdash', lib='dash', mandatory=True, define_name='DASH',
-                                                    uselib_store='DASH',libpath=os.path.abspath(os.path.join("../libdash/libdash/build/bin/", ".")))
+    conf.env['INCLUDES_DASH'] = os.path.join(conf.env['WITH_DASH'], "libdash/include/")
+    conf.env['LIBPATH_DASH'] = [ os.path.join(conf.env['WITH_DASH'], "build/bin/") ]
 
-    conf.env['INCLUDES_DASH'] = os.path.abspath(os.path.join("../libdash/libdash/build/bin/", "."))
+    conf.env['DASH'] = conf.check(fragment=test_code, lib='dash', libpath=conf.env['LIBPATH_DASH'], use='DASH')
 
-    conf.env.append_value('NS3_MODULE_PATH',os.path.abspath(os.path.join("../libdash/libdash/build/bin/", ".")))
-    OTHER_NS3_MODULES.append('DASH')
+    if conf.env['DASH']:
+        conf.env['ENABLE_DASH'] = True
+        conf.env.append_value('CXXDEFINES', 'NS3_LIBDASH')
+        OTHER_NS3_MODULES.append('DASH')
+
+
 
     # check for brite
     conf.env['ENABLE_BRITE'] = False
@@ -166,6 +215,8 @@ int main()
 def build (bld):
     deps = 'BOOST BOOST_IOSTREAMS ' + ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
 
+    bld.all_task_gen = []
+
     common = bld.objects (
         target = "extensions",
         features = ["cxx"],
@@ -180,8 +231,8 @@ def build (bld):
             features = ['cxx'],
             source = [scenario],
             use = deps + " extensions DASH BRITE",
-            includes = ' '.join (["extensions", bld.env['INCLUDES_BRITE'], bld.env['INCLUDES_DASH']])
             )
+        bld.all_task_gen.append(app)
 
     for scenario in bld.path.ant_glob (['scenarios/*.cpp']):
         name = str(scenario)[:-len(".cpp")]
@@ -190,31 +241,21 @@ def build (bld):
             features = ['cxx'],
             source = [scenario],
             use = deps + " extensions DASH BRITE",
-            includes = ' '.join (["extensions", bld.env['INCLUDES_BRITE'], bld.env['INCLUDES_DASH']])
             )
+        bld.all_task_gen.append(app)
+    wutils.bld = bld
 
 def shutdown (ctx):
+    bld = wutils.bld
+    if wutils.bld is None:
+        print "Nope"
+        return
+    env = bld.env
+
     if Options.options.run:
-        visualize=Options.options.visualize
-        mpi = Options.options.mpi
+        wutils.run_program(Options.options.run, env, wutils.get_command_template(env),
+                           visualize=Options.options.visualize,cwd='./')
+        raise SystemExit(0)
 
-        if mpi and visualize:
-            Logs.error ("You cannot specify --mpi and --visualize options at the same time!!!")
-            return
 
-        argv = Options.options.run.split (' ');
-        argv[0] = "build/%s" % argv[0]
 
-        if visualize:
-            argv.append ("--SimulatorImplementationType=ns3::VisualSimulatorImpl")
-
-        if mpi:
-            argv.append ("--SimulatorImplementationType=ns3::DistributedSimulatorImpl")
-            argv.append ("--mpi=1")
-            argv = ["openmpirun", "-np", mpi] + argv
-            Logs.error (argv)
-
-        if Options.options.time:
-            argv = ["time"] + argv
-
-        return subprocess.call (argv)

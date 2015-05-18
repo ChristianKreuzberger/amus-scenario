@@ -7,6 +7,8 @@ at [amus-ndnSIM github repository](https://github.com/ChristianKreuzberger/amus-
 In addition, this template is based on [ndnSIM-scenario-template](https://github.com/cawka/ndnSIM-scenario-template),
 with some additions. If you run into problems, this is the place to go to for further documentation.
 
+---------------------------------------------
+
 Prerequisites
 =============
 
@@ -55,14 +57,12 @@ This should successfully compile all examples, printing the following to console
     'build' finished successfully (15.609s)
 
 
+---------------------------------------------
+
 Running
 =======
 
-Very important: As we extended ndnSIM with DASH and BRITE, we need to define LD_LIBRARY_PATH so the programs find
-the shared objects libdash and libbrite. To do this, write the following either in your .bashrc or everytime after 
-you start a new terminal window:
 
-    export LD_LIBRARY_PATH=/home/$USER/ndnSIM/libdash/libdash/build/bin/:/home/$USER/ndnSIM/BRITE/:$LD_LIBRARY_PATH
 
 Now you can run scenarios either directly
 
@@ -72,7 +72,7 @@ or using waf
 
     ./waf --run <scenario_name>
 
-If NS-3 is installed in a non-standard location, on some platforms (e.g., Linux) you need to specify ``LD_LIBRARY_PATH`` variable:
+If NS-3/amus-ndnSIM is installed in a non-standard location, on some platforms (e.g., Linux) you need to specify ``LD_LIBRARY_PATH`` variable:
 
     LD_LIBRARY_PATH=/usr/local/lib ./build/<scenario_name>
 
@@ -80,13 +80,42 @@ or
 
     LD_LIBRARY_PATH=/usr/local/lib ./waf --run <scenario_name>
 
-To run scenario using debugger, use the following command:
-
-    gdb --args ./build/<scenario_name>
 
 We have several example scenarios available for testing:
 
     ./waf --run hello # test if the compiling/linking did work
     ./waf --run ndn-mysimple # test if ndn stuff works (this does not print much output though)
     ./waf --run ndn-mysimple --vis # test if visualizer works (this should show you packets being processed)
+
+
+
+---------------------------------------------
+
+Debugging
+=========
+To run a scenario using debugger, use the following command:
+
+    gdb --args ./build/<scenario_name>
+
+or use the command template:
+
+    ./waf --run <scenario_name> --command-template="gdb %s"
+
+In the same way, you can also run valgrind:
+
+    ./waf --run <scenario_name> --command-template="valgrind --leak-check=full --show-reachable=yes %s"
+
+Note: If you need to debug amus-ndnSIM, we recommend compiling amus-ndnSIM without the -d optimized flag.
+
+---------------------------------------------
+
+
+Troubleshooting with Libraries
+==============================
+
+In case you are having issues with libdash or BRITE, make sure that the LD_LIBRARY_PATH is set properly
+To do this, adapt the following command and write it either to your .bashrc or everytime after 
+you start a new terminal window:
+
+    export LD_LIBRARY_PATH=/home/$USER/ndnSIM/libdash/libdash/build/bin/:/home/$USER/ndnSIM/BRITE/:$LD_LIBRARY_PATH
 
