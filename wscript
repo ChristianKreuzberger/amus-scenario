@@ -118,7 +118,7 @@ int main()
     if conf.env['DASH']:
         conf.env['ENABLE_DASH'] = True
         conf.env.append_value('CXXDEFINES', 'NS3_LIBDASH')
-        OTHER_NS3_MODULES.append('DASH')
+        #OTHER_NS3_MODULES.append('DASH')
 
 
 
@@ -185,7 +185,7 @@ int main()
         conf.env['ENABLE_BRITE'] = True
         conf.env.append_value('CXXDEFINES', 'NS3_BRITE')
         conf.env.append_value('CPPPATH', conf.env['CPPPATH_BRITE'])
-        OTHER_NS3_MODULES.append('BRITE')
+        #OTHER_NS3_MODULES.append('BRITE')
 
     try:
         conf.check_ns3_modules(MANDATORY_NS3_MODULES)
