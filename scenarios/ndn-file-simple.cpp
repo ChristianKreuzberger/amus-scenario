@@ -108,9 +108,9 @@ main(int argc, char* argv[])
   // Consumer
   ndn::AppHelper consumerHelper("ns3::ndn::FileConsumerCbr");
   // Consumer will request /prefix/0, /prefix/1, ...
-  consumerHelper.SetAttribute("FileToRequest", StringValue("/some_prefix/BBB-III.mpd.gz"));
+  consumerHelper.SetAttribute("FileToRequest", StringValue("/some_prefix/BBB-I-360p.mpd"));
   consumerHelper.SetAttribute("StartWindowSize", StringValue("60"));
-  consumerHelper.SetAttribute("WriteOutfile", StringValue("/home/ckreuz/test.mpd.gz"));
+  consumerHelper.SetAttribute("WriteOutfile", StringValue("/home/ckreuz/test.mpd"));
 
 
   // Start one consumer at 1.0 seconds, the other consumer at 2.0 seconds
