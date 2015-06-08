@@ -88,7 +88,6 @@ def configure(conf):
         # No user specified '--with-dash' option, try to guess
         # we have built it, so it should be in ../libdash/libdash/
         libdash_dir = os.path.abspath(os.path.join(libdash_default_dir, "build/bin/"))
-        print libdash_dir
         if os.path.exists(os.path.join(libdash_dir, lib_to_check)):
             conf.msg("Checking for LIBDASH location", ("%s (guessed)" % libdash_default_dir))
             conf.env['WITH_DASH'] = os.path.abspath(libdash_default_dir)
@@ -119,7 +118,7 @@ int main()
     if conf.env['DASH']:
         conf.env['ENABLE_DASH'] = True
         conf.env.append_value('CXXDEFINES', 'NS3_LIBDASH')
-        OTHER_NS3_MODULES.append('DASH')
+        #OTHER_NS3_MODULES.append('DASH')
 
 
 
@@ -186,7 +185,7 @@ int main()
         conf.env['ENABLE_BRITE'] = True
         conf.env.append_value('CXXDEFINES', 'NS3_BRITE')
         conf.env.append_value('CPPPATH', conf.env['CPPPATH_BRITE'])
-        OTHER_NS3_MODULES.append('BRITE')
+        #OTHER_NS3_MODULES.append('BRITE')
 
     try:
         conf.check_ns3_modules(MANDATORY_NS3_MODULES)
@@ -248,7 +247,6 @@ def build (bld):
 def shutdown (ctx):
     bld = wutils.bld
     if wutils.bld is None:
-        print "Nope"
         return
     env = bld.env
 
