@@ -4,3 +4,7 @@
 .lock*
 build/
 *.pyc
+*~
+.idea
+last_seed_file
+output/
