@@ -80,6 +80,11 @@ class CloudSchedulerThread(threading.Thread):
 
         r = requests.post(self.ws, params=payload, files=files)
         # print r.content
+
+        print "before remove, len:", len(self.jobList)
+        # remove this job from self.jobList
+        self.jobList.remove(job) # does this work?
+        print "after remove, len:", len(self.jobList)
         # done?
 
     def startJob(self, job):
@@ -87,10 +92,6 @@ class CloudSchedulerThread(threading.Thread):
         jobthread = JobThread(job, outputFileName, self.reportJobFinished)
         jobthread.start()
 
-
-    def reportJobMemoryConsumption(self):
-        print "memory..."
-    # end method
 
     def stopRunning(self):
         self.running = False
