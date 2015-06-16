@@ -203,20 +203,28 @@ main(int argc, char* argv[])
   ndnHelper.Install (leafnodes);
 
   //ndnHelper.SetDefaultRoutes(true);
-
+  std::string m_actualRoutingStrategy = "";
   // Choosing forwarding strategy
   if (routingStrategy == "bestroute")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/best-route");
+    fprintf(stderr, "Installing bestroute strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/best-route";
   } else if (routingStrategy == "broadcast")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/broadcast");
+    fprintf(stderr, "Installing broadcast strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/broadcast";
   } else if (routingStrategy == "SAF")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/SAF");
+    fprintf(stderr, "Installing SAF startegy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/SAF";
   } else if (routingStrategy == "NCC")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/ncc");
+    fprintf(stderr, "Installing NCC Strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/ncc";
+  } else
+  {
+    fprintf(stderr, "Error installing strategy - invalid fwStrategy selected...\n");
+    return 1;
   }
 
   // ndn::StrategyChoiceHelper::InstallAll("/prefix", "/localhost/nfd/strategy/broadcast");
@@ -269,6 +277,7 @@ main(int argc, char* argv[])
   for (int i = 0; i < server.size(); i++)
   {
     std::string serverPrefix = "/myprefix" + boost::lexical_cast<std::string>(i);
+    ndn::StrategyChoiceHelper::InstallAll(serverPrefix, m_actualRoutingStrategy);
 
 
     //std::cout << "Server prefix: " << serverPrefix << std::endl;
@@ -280,6 +289,8 @@ main(int argc, char* argv[])
 
     ndnGlobalRoutingHelper.AddOrigins(serverPrefix, server[i]);
   }
+
+
 
   // Calculate and install FIBs
   ndn::GlobalRoutingHelper::CalculateAllPossibleRoutes();
