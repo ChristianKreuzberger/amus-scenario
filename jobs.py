@@ -1,6 +1,5 @@
 __author__ = 'ckreuz'
 
-
 import psutil as ps
 import os
 import sys
@@ -65,32 +64,13 @@ print "Waiting for all jobs to finish"
 cloudScheduler.join() # wait for cloud scheduler stuff to finish
 print "Jobs finished!"
 
-# now evaluate statistics (POST PROCESSING)
-rootdir = "./output/"
 
-lst = os.listdir(rootdir)
-lst.sort()
 
-for dir1 in lst:
-    if dir1.endswith(".csv"):
-        continue
-    try:
-        # brite_FIFO_NCC_1000_0 <- remove the last _0, as this is the run number
-        runType = dir1[:dir1.rfind("_")]
-        #print runType
-        if not os.path.isfile(os.path.join(rootdir, dir1 + ".csv")):
-            outputFile = open(os.path.join(rootdir, dir1 + ".csv"), "w")
-            calculateStatsForDASH(os.path.join(rootdir, dir1, "dash-output.txt"), outputFile)
-    except:
-        print "Error parsing " + dir1
-# TODO: Grab all .csv files and upload them 
-
-# end POST PROCESSING
 
 
 
 print "Waiting for statistics thread to finish..."
 stats.stopRunning()
 stats.join()
-
+print "Done!"
 
