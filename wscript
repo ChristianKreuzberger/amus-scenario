@@ -57,7 +57,7 @@ def configure(conf):
         os.environ['PKG_CONFIG_PATH'] = ':'.join([
             '/usr/local/lib/pkgconfig',
             '/opt/local/lib/pkgconfig'])
-    conf.check_boost(lib='system iostreams')
+    conf.check_boost(lib='system iostreams filesystem')
     boost_version = conf.env.BOOST_VERSION.split('_')
     if int(boost_version[0]) < 1 or int(boost_version[1]) < 53:
         Logs.error ("ndnSIM requires at least boost version 1.53")
@@ -212,7 +212,7 @@ int main()
         conf.define('NS3_ASSERT_ENABLE', 1)
 
 def build (bld):
-    deps = 'BOOST BOOST_IOSTREAMS ' + ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
+    deps = 'BOOST BOOST_IOSTREAMS BOOST_FILESYSTEM ' + ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
 
     bld.all_task_gen = []
 
