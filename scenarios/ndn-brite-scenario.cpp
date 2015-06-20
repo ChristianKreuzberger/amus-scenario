@@ -32,6 +32,8 @@
 #include "ns3/ndnSIM/utils/tracers/ndn-dashplayer-tracer.hpp"
 
 
+#include <boost/filesystem.hpp>
+
 namespace ns3 {
 
 
@@ -65,6 +67,10 @@ main(int argc, char* argv[])
   std::string cachingStrategy = "nocache";
   std::string numCacheEntries = "1000";
   std::string outputFolder = "output";
+  std::string dashAdaptationLogic = "DASHJS";
+  std::string serverType = "fake";
+
+  ns3::Config::SetDefault("ns3::PointToPointNetDevice::Mtu", StringValue("4096"));
 
   // Read optional command-line parameters (e.g., enable visualizer with ./waf --run=<> --visualize
   CommandLine cmd;
@@ -73,8 +79,30 @@ main(int argc, char* argv[])
   cmd.AddValue ("csStrategy", "Caching/content store Strategy (nocache, LRU, LFU, FIFO)", cachingStrategy);
   cmd.AddValue ("cacheEntries", "Number of maximum cache entries (integer)", numCacheEntries);
   cmd.AddValue ("outputFolder", "Where to put trace files", outputFolder);
+  cmd.AddValue ("adaptationLogic", "DASH Adaptation Logic: AlwaysLowest, Rate, RateBuffer, DASHJS", dashAdaptationLogic);
+  cmd.AddValue ("serverType", "Select Server Type (fake or real)", serverType);
 
   cmd.Parse(argc, argv);
+
+
+  if (dashAdaptationLogic == "DASHJS")
+  {
+    dashAdaptationLogic = "dash::player::DASHJSAdaptationLogic";
+  } else if (dashAdaptationLogic == "Rate")
+  {
+    dashAdaptationLogic = "dash::player::RateBasedAdaptationLogic";
+  } else if (dashAdaptationLogic == "RateBuffer")
+  {
+    dashAdaptationLogic = "dash::player::RateAndBufferBasedAdaptationLogic";
+  } else if (dashAdaptationLogic == "AlwaysLowest")
+  {
+    dashAdaptationLogic = "dash::player::AlwaysLowestAdaptationLogic";
+  } else if (dashAdaptationLogic == "Buffer")
+  {
+    dashAdaptationLogic = "dash::player::BufferBasedAdaptationLogic";
+  } else { // default
+    dashAdaptationLogic = "dash::player::AlwaysLowestAdaptationLogic";
+  }
 
   // Create NDN Stack
   ndn::StackHelper ndnHelper;
@@ -181,6 +209,7 @@ main(int argc, char* argv[])
   if (cachingStrategy == "nocache")
   {
     std::cout << "Setting cache of routers to no-cache" << std::endl;
+    ndnHelper.SetOldContentStore("");
     ndnHelper.setCsSize(1); // disable content store
   } else if (cachingStrategy == "LRU")
   {
@@ -197,26 +226,37 @@ main(int argc, char* argv[])
     std::cout << "Using FIFO caching strategies on routers " << std::endl;
     ndnHelper.setCsSize(0); // use old content store
     ndnHelper.SetOldContentStore ("ns3::ndn::cs::Fifo","MaxSize", numCacheEntries);
+  } else {
+    fprintf(stderr, "No proper caching strategy selected!");
+    return 2;
   }
 
   ndnHelper.Install(router);
   ndnHelper.Install (leafnodes);
 
   //ndnHelper.SetDefaultRoutes(true);
-
+  std::string m_actualRoutingStrategy = "";
   // Choosing forwarding strategy
   if (routingStrategy == "bestroute")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/best-route");
+    fprintf(stderr, "Installing bestroute strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/best-route";
   } else if (routingStrategy == "broadcast")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/broadcast");
+    fprintf(stderr, "Installing broadcast strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/broadcast";
   } else if (routingStrategy == "SAF")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/SAF");
+    fprintf(stderr, "Installing SAF startegy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/SAF";
   } else if (routingStrategy == "NCC")
   {
-    ndn::StrategyChoiceHelper::InstallAll("/myprefix", "/localhost/nfd/strategy/ncc");
+    fprintf(stderr, "Installing NCC Strategy...\n");
+    m_actualRoutingStrategy = "/localhost/nfd/strategy/ncc";
+  } else
+  {
+    fprintf(stderr, "Error installing strategy - invalid fwStrategy selected...\n");
+    return 1;
   }
 
   // ndn::StrategyChoiceHelper::InstallAll("/prefix", "/localhost/nfd/strategy/broadcast");
@@ -236,15 +276,18 @@ main(int argc, char* argv[])
   consumerHelper.SetAttribute("StartRepresentationId", StringValue("auto"));
   consumerHelper.SetAttribute("MaxBufferedSeconds", UintegerValue(60));
   consumerHelper.SetAttribute("StartUpDelay", StringValue("0.1"));
-  consumerHelper.SetAttribute("AdaptationLogic", StringValue("dash::player::RateAndBufferBasedAdaptationLogic"));
+  consumerHelper.SetAttribute("AdaptationLogic", StringValue(dashAdaptationLogic));
+
+
+  std::cout << "DASH Player using " << dashAdaptationLogic << std::endl;
 
   // Randomize Client File Selection
   UniformVariable randomStartTime(0,60);
-  for(int i=0; i<client.size (); i++)
+  for(uint32_t i=0; i<client.size (); i++)
   {
     // TODO: Make some logic to decide which file to request
     unsigned int randomNumber =  randInt.GetInteger(0,numServers-1);
-    std::string mpdFile = "/myprefix" + boost::lexical_cast<std::string>(randomNumber) + "/AVC/BBB/BBB-2s-" + boost::lexical_cast<std::string>(randomNumber) + ".mpd";
+    std::string mpdFile = "/myprefix" + boost::lexical_cast<std::string>(randomNumber) + "/BBB-2s-" + boost::lexical_cast<std::string>(randomNumber) + ".mpd";
     int startTime = randomStartTime.GetInteger(0,60);
 
     consumerHelper.SetAttribute("MpdFileToRequest", StringValue(std::string(mpdFile)));
@@ -266,9 +309,10 @@ main(int argc, char* argv[])
   ndn::AppHelper producerHelper("ns3::ndn::FileServer");
 
 
-  for (int i = 0; i < server.size(); i++)
+  for (uint32_t i = 0; i < server.size(); i++)
   {
     std::string serverPrefix = "/myprefix" + boost::lexical_cast<std::string>(i);
+    ndn::StrategyChoiceHelper::InstallAll(serverPrefix, m_actualRoutingStrategy);
 
 
     //std::cout << "Server prefix: " << serverPrefix << std::endl;
@@ -278,8 +322,22 @@ main(int argc, char* argv[])
     producerHelper.SetAttribute("ContentDirectory", StringValue("/home/ckreuz/multimediaData/"));
     producerHelper.Install(server[i]); // install to servers
 
+    // check if we should also use fake file server
+    if (serverType == "fake")
+    {
+      ndn::AppHelper producerHelper("ns3::ndn::FakeFileServer");
+ 
+      // Producer will reply to all requests starting with /prefix
+      producerHelper.SetPrefix(serverPrefix + "/AVC/BBB");
+      producerHelper.SetAttribute("MetaDataFile", StringValue("/home/ckreuz/multimediaData/AVC/BBB/files.csv"));
+      producerHelper.Install(server[i]); // install to some node from nodelist
+    }
+
+
     ndnGlobalRoutingHelper.AddOrigins(serverPrefix, server[i]);
   }
+
+
 
   // Calculate and install FIBs
   ndn::GlobalRoutingHelper::CalculateAllPossibleRoutes();
@@ -291,6 +349,13 @@ main(int argc, char* argv[])
 
 
   Simulator::Stop(Seconds(1600.0));
+  
+  
+  boost::filesystem::path dir(outputFolder);
+  if(boost::filesystem::create_directory(dir))
+  {
+    std::cerr<< "Directory Created: "<< outputFolder << std::endl;
+  }
 
   ndn::DASHPlayerTracer::InstallAll(outputFolder + "/dash-output.txt");
 
@@ -313,5 +378,7 @@ main(int argc, char* argv[])
 {
   return ns3::main(argc, argv);
 }
+
+
 
 
