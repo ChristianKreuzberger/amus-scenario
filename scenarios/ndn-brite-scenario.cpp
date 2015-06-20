@@ -70,6 +70,8 @@ main(int argc, char* argv[])
   std::string dashAdaptationLogic = "DASHJS";
   std::string serverType = "fake";
 
+  ns3::Config::SetDefault("ns3::PointToPointNetDevice::Mtu", StringValue("4096"));
+
   // Read optional command-line parameters (e.g., enable visualizer with ./waf --run=<> --visualize
   CommandLine cmd;
   cmd.AddValue ("briteConfFile", "BRITE configuration file", confFile);
@@ -95,6 +97,9 @@ main(int argc, char* argv[])
   } else if (dashAdaptationLogic == "AlwaysLowest")
   {
     dashAdaptationLogic = "dash::player::AlwaysLowestAdaptationLogic";
+  } else if (dashAdaptationLogic == "Buffer")
+  {
+    dashAdaptationLogic = "dash::player::BufferBasedAdaptationLogic";
   } else { // default
     dashAdaptationLogic = "dash::player::AlwaysLowestAdaptationLogic";
   }
@@ -204,6 +209,7 @@ main(int argc, char* argv[])
   if (cachingStrategy == "nocache")
   {
     std::cout << "Setting cache of routers to no-cache" << std::endl;
+    ndnHelper.SetOldContentStore("");
     ndnHelper.setCsSize(1); // disable content store
   } else if (cachingStrategy == "LRU")
   {
@@ -220,6 +226,9 @@ main(int argc, char* argv[])
     std::cout << "Using FIFO caching strategies on routers " << std::endl;
     ndnHelper.setCsSize(0); // use old content store
     ndnHelper.SetOldContentStore ("ns3::ndn::cs::Fifo","MaxSize", numCacheEntries);
+  } else {
+    fprintf(stderr, "No proper caching strategy selected!");
+    return 2;
   }
 
   ndnHelper.Install(router);
