@@ -6,6 +6,7 @@ import time
 import threading
 import subprocess
 import gzip
+import os
 
 
 
@@ -21,11 +22,15 @@ class JobThread(threading.Thread):
 
     def run(self):
         print "starting job with id ", self.job['jobId'], ", commandline:"
-        print self.job['commandLine']
+        
 
         self.startTime = time.time()
         fpout = open(self.outputFile, "w")
         self.active = True
+        
+        self.job['commandLine'][0] = os.path.join(os.path.dirname(os.path.realpath(__file__)),self.job['commandLine'][0])
+        
+        print self.job['commandLine']
 
         proc = subprocess.Popen(self.job['commandLine'], stdout=fpout, stderr=fpout)
         proc.communicate()
