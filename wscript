@@ -68,7 +68,6 @@ def configure(conf):
                    uselib_store='NDN_CXX', mandatory=True)
 
 
-
     # check for libdash
     conf.env['ENABLE_DASH'] = False
     lib_to_check = 'libdash.so'
